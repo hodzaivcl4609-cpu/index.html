@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Class Monitor - Demo Full (Offline)</title>
+<style>
+:root{--bg:#0b0b0b;--card:#111;--muted:#b5b5b5;--accent:#ff3b3b;--accent2:#ff6767;--good:#3bd671;--bad:#ff3b3b;--glass:rgba(255,255,255,0.03)}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#050505,#0b0b0b);color:#f3f3f3;min-height:100vh}
+.container{max-width:1100px;margin:20px auto;padding:18px}
+.header{display:flex;align-items:center;gap:12px}
+.brand{font-weight:800;font-size:1.4rem;color:var(--accent)}
+.subtitle{color:var(--muted);font-size:0.95rem}
+.grid{display:grid;grid-template-columns:1fr 360px;gap:16px;margin-top:14px}
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.04);padding:14px;border-radius:12px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+.small{font-size:0.9rem;color:var(--muted)}
+
+/* form elements */
+input,select,textarea,button{font-family:inherit}
+input,select,textarea{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:10px;border-radius:8px;color:#fff;width:100%}
+textarea{min-height:90px}
+.btn{background:linear-gradient(180deg,var(--accent),var(--accent2));color:#0b0b0b;border:none;padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:700}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+.btn.warn{background:transparent;color:var(--accent);border:1px solid rgba(255,59,59,0.12)}
+.row{display:flex;gap:8px;align-items:center}
+.col{flex:1}
+.list{list-style:none;padding:0;margin:0}
+.list li{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);margin-bottom:8px;background:var(--glass)}
+
+/* badges */
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#111;border:1px solid rgba(255,255,255,0.03);font-size:12px;color:var(--muted)}
+
+/* small table */
+.table{width:100%;border-collapse:collapse;margin-top:8px}
+.table th,.table td{padding:8px;text-align:left;border-bottom:1px dashed rgba(255,255,255,0.03);font-size:14px}
+
+/* responsive */
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.footer{margin-top:12px;color:var(--muted);font-size:13px}
+
+/* red accent headers */
+.h2{font-size:1.1rem;color:var(--accent);margin:6px 0}
+.note{color:var(--muted);font-size:0.9rem}
+
+/* image preview */
+.preview{max-width:120px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);display:block;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <div class="brand">Class Monitor — Demo Full</div>
+      <div class="subtitle">Phiên bản thử nghiệm offline • giao diện tối (đen-đỏ)</div>
+    </div>
+    <div style="margin-left:auto" class="small">Lưu ý: bản demo offline dùng <b>localStorage</b> (chưa đồng bộ).</div>
+  </div>
+
+  <div class="grid">
+    <div class="card" id="mainArea">
+      <!-- dynamic content here -->
+    </div>
+
+    <div class="card">
+      <div class="h2">Trạng thái nhanh</div>
+      <div id="statusArea" class="small">
+        <!-- status lines -->
+      </div>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
+      <div class="h2">Tạo lớp (GVCN)</div>
+      <div class="note">Tạo nhanh lớp mới (mật khẩu sẽ lưu cục bộ).</div>
+      <div style="margin-top:8px">
+        <input id="newClassName" placeholder="Tên lớp (vd: 10A7)">
+        <input id="newClassPass" placeholder="Mật khẩu lớp (vd: 10A7pass)" style="margin-top:8px">
+        <button class="btn" style="margin-top:8px;width:100%" onclick="createClass()">Tạo lớp mới</button>
+      </div>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
+      <div class="h2">Tải/Hủy dữ liệu</div>
+      <div class="note">Bạn có thể xuất dữ liệu (JSON) để sao lưu hoặc xóa toàn bộ.</div>
+      <div style="margin-top:8px">
+        <button class="btn ghost" onclick="downloadData()">Xuất dữ liệu (.json)</button>
+        <button class="btn warn" onclick="resetAll()">Xóa toàn bộ dữ liệu (reset)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Nếu muốn nâng lên bản trực tuyến có đồng bộ (Firebase), mình sẽ hướng dẫn tiếp.</div>
+</div>
+
+<script>
+/* ------------------- Data model in localStorage ------------------- */
+const STORAGE_KEY = "class_monitor_full_v3";
+
+const SUBJECTS = ["Toán","Văn","Sử","Địa","Công nghệ","Tiếng Anh","GD Kinh tế & PL","GD Thể chất","GD Địa phương","Tin học","GD QP & AN"];
+
+// default seed
+const defaultState = {
+  classes:{
+    "10A1": { name:"10A1", pass:"10A1pass", createdAt: Date.now(), students:{
+      "HS10A1_01": {id:"HS10A1_01", name:"Nguyễn Văn A", good:1,bad:0,hk:null},
+      "HS10A1_02": {id:"HS10A1_02", name:"Trần Thị B", good:0,bad:0,hk:null},
+      "HS10A1_03": {id:"HS10A1_03", name:"Lê Văn C", good:0,bad:0,hk:null}
+    }, reports:{}, pendingReports:{}, history:{weeks:[]}, hanhkiem:{} },
+    "10A6": { name:"10A6", pass:"10A6pass", createdAt: Date.now(), students:{
+      "HS10A6_01": {id:"HS10A6_01", name:"Phạm Thị D", good:0,bad:0,hk:null},
+      "HS10A6_02": {id:"HS10A6_02", name:"Hoàng Văn E", good:0,bad:0,hk:null}
+    }, reports:{}, pendingReports:{}, history:{weeks:[]}, hanhkiem:{} }
+  },
+  users:{}, // optional auth mapping offline
+  settings:{ publicRanking:false, currentSemester:1 }
+};
+
+let state = loadState();
+
+function loadState(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(raw) try{ return JSON.parse(raw);}catch(e){ localStorage.removeItem(STORAGE_KEY); }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
+  return JSON.parse(localStorage.getItem(STORAGE_KEY));
+}
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateStatus(); }
+
+/* ------------------- UI flow ------------------- */
+const mainArea = document.getElementById("mainArea");
+function renderLanding(){
+  mainArea.innerHTML = `
+    <div class="h2">Bước 1: Chọn lớp</div>
+    <div class="note">Chọn lớp có sẵn hoặc nhập tên lớp + mật khẩu để vào.</div>
+    <div style="margin-top:10px" class="row">
+      <select id="classSelect"></select>
+      <input id="classPassInput" placeholder="Mật khẩu lớp">
+      <button class="btn" onclick="enterClass()">Vào</button>
+    </div>
+    <div style="margin-top:12px" class="h2">Hoặc nhập trực tiếp (mã lớp + ID học sinh)</div>
+    <div class="note">Nếu bạn là học sinh: nhập ID (ví dụ HS10A1_01). Nếu là GV, chọn mục sau khi vào lớp.</div>
+    <div style="margin-top:8px" class="row">
+      <input id="directClassName" placeholder="Tên lớp (vd 10A1)">
+      <input id="directClassPass" placeholder="Mật khẩu lớp">
+    </div>
+    <div style="margin-top:8px" class="row">
+      <input id="directRole" placeholder="Vai trò (hs/gv/gvcn)" >
+      <input id="directId" placeholder="ID học sinh (nếu HS)">
+      <button class="btn" onclick="directEnter()">Đăng nhập</button>
+    </div>
+    <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+    <div class="h2">Danh sách lớp hiện có</div>
+    <ul id="classList" class="list"></ul>
+  `;
+  const sel = document.getElementById("classSelect");
+  sel.innerHTML = "";
+  for(const k of Object.keys(state.classes)){
+    const opt = document.createElement("option"); opt.value=k; opt.textContent=k; sel.appendChild(opt);
+  }
+  renderClassList();
+  updateStatus();
+}
+
+function renderClassList(){
+  const ul = document.getElementById("classList");
+  ul.innerHTML = "";
+  for(const k in state.classes){
+    const li = document.createElement("li");
+    const c = state.classes[k];
+    li.innerHTML = `<div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1"><b>${c.name}</b> <div class="small" style="margin-top:6px">SV: ${Object.keys(c.students||{}).length} • Báo cáo: ${Object.keys(c.reports||{}).length} • Chờ: ${Object.keys(c.pendingReports||{}).length}</div></div>
+      <div style="min-width:140px"><button class="btn ghost" onclick="showClassInfo('${k}')">Xem</button></div>
+    </div>`;
+    ul.appendChild(li);
+  }
+}
+
+/* enter class */
+function enterClass(){
+  const sel = document.getElementById("classSelect");
+  const pass = document.getElementById("classPassInput").value.trim();
+  const cname = sel.value;
+  if(!state.classes[cname]) return alert("Lớp không tồn tại");
+  if(pass !== state.classes[cname].pass) return alert("Sai mật khẩu lớp");
+  openClass(cname);
+}
+
+function directEnter(){
+  const cname = document.getElementById("directClassName").value.trim();
+  const pass = document.getElementById("directClassPass").value.trim();
+  const role = document.getElementById("directRole").value.trim().toLowerCase();
+  const id = document.getElementById("directId").value.trim();
+  if(!state.classes[cname]) return alert("Lớp không tồn tại");
+  if(pass !== state.classes[cname].pass) return alert("Sai mật khẩu lớp");
+  if(role==="hs"){
+    if(!id) return alert("Nhập ID học sinh");
+    if(!state.classes[cname].students[id]) return alert("ID không có trong lớp");
+    // open student portal
+    openPortal(cname,"student", id);
+  } else if(role==="gv"){
+    openPortal(cname,"teacher");
+  } else if(role==="gvcn"){
+    openPortal(cname,"homeroom");
+  } else {
+    alert("Vai trò không hợp lệ. Nhập hs/gv/gvcn");
+  }
+}
+
+/* open class - choose role */
+function openClass(cname){
+  mainArea.innerHTML = `
+    <div class="h2">Lớp: ${cname}</div>
+    <div class="note">Chọn vai trò để đăng nhập (HS: cần ID học sinh)</div>
+    <div style="margin-top:8px" class="row">
+      <input id="loginId" placeholder="ID học sinh (nếu HS)">
+      <select id="loginRole"><option value="student">Học sinh</option><option value="teacher">Giáo viên bộ môn</option><option value="homeroom">Giáo viên chủ nhiệm</option></select>
+      <button class="btn" onclick="loginToRole('${cname}')">Đăng nhập</button>
+      <button class="btn ghost" onclick="renderLanding()">Quay lại</button>
+    </div>
+    <div style="margin-top:10px" id="classMiniInfo"></div>
+  `;
+  renderClassMiniInfo(cname);
+}
+
+function renderClassMiniInfo(cname){
+  const el = document.getElementById("classMiniInfo");
+  const c = state.classes[cname];
+  el.innerHTML = `<div class="small">Học sinh: ${Object.keys(c.students||{}).length} • Reports: ${Object.keys(c.reports||{}).length} • Pending: ${Object.keys(c.pendingReports||{}).length}</div>`;
+}
+
+function loginToRole(cname){
+  const role = document.getElementById("loginRole").value;
+  const id = document.getElementById("loginId").value.trim();
+  if(role==="student"){
+    if(!id) return alert("Nhập ID học sinh");
+    if(!state.classes[cname].students[id]) return alert("ID không thuộc lớp");
+    openPortal(cname,"student", id);
+  } else if(role==="teacher"){
+    openPortal(cname,"teacher");
+  } else if(role==="homeroom"){
+    openPortal(cname,"homeroom");
+  }
+}
+
+/* ------------------- Portal UIs ------------------- */
+function openPortal(cname, role, studentId=null){
+  const c = state.classes[cname];
+  // header and common nav
+  mainArea.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px">
+      <div><b>Lớp ${cname}</b> <span class="badge">${role.toUpperCase()}</span></div>
+      <div style="margin-left:auto" class="small">ID: ${studentId?studentId:'-'}</div>
+    </div>
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:10px 0">
+    <div id="portalArea"></div>
+    <div style="margin-top:12px"><button class="btn ghost" onclick="renderLanding()">Thoát về danh sách lớp</button></div>
+  `;
+  if(role==="student") renderStudentPortal(cname, studentId);
+  if(role==="teacher") renderTeacherPortal(cname);
+  if(role==="homeroom") renderHomeroomPortal(cname);
+  updateStatus();
+}
+
+/* ---------- Student portal ---------- */
+function renderStudentPortal(cname, sid){
+  const area = document.getElementById("portalArea");
+  area.innerHTML = `
+    <div class="h2">Mục Học sinh</div>
+    <div class="note">Bạn đang đăng nhập với ID: <b>${sid}</b></div>
+    <div style="margin-top:8px" class="card">
+      <div class="h2">Gửi tố giác ẩn danh</div>
+      <div class="note">Nhập ID người bị tố và mô tả. Nếu có bằng chứng, có thể đính kèm ảnh (khuyến nghị).</div>
+      <input id="repTarget" placeholder="ID học sinh bị tố (vd HS10A1_02)">
+      <textarea id="repText" placeholder="Mô tả hành vi..."></textarea>
+      <input id="repFile" type="file" accept='image/*' style="margin-top:8px">
+      <div style="margin-top:8px" class="row"><button class="btn" onclick="submitReport('${cname}','${sid}')">Gửi tố giác</button><button class="btn ghost" onclick="renderStudentPortal('${cname}','${sid}')">Làm mới</button></div>
+    </div>
+    <div style="margin-top:10px" class="card">
+      <div class="h2">Bỏ phiếu xác minh (nếu có phiên)</div>
+      <div id="voteArea" class="small">Chưa có phiên bỏ phiếu</div>
+    </div>
+    <div style="margin-top:10px" class="card">
+      <div class="h2">Xếp hạng tuần (hiển thị khi GVCN bật)</div>
+      <div id="studentRankArea" class="small">Ẩn</div>
+    </div>
+  `;
+  // show vote if active
+  refreshStudentVote(cname);
+  renderStudentRanking(cname);
+}
+
+function submitReport(cname, sid){
+  const target = document.getElementById("repTarget").value.trim();
+  const text = document.getElementById("repText").value.trim();
+  if(!target||!text) return alert("Nhập đầy đủ ID bị tố và mô tả");
+  if(!state.classes[cname].students[target]) return alert("ID mục tiêu không tồn tại trong lớp");
+  const fileInput = document.getElementById("repFile");
+  if(fileInput.files && fileInput.files[0]){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const dataUrl = e.target.result;
+      addReport(cname, sid, target, text, dataUrl);
+      renderStudentPortal(cname, sid);
+      alert("Đã gửi tố giác (có ảnh). Nếu đạt ngưỡng sẽ báo GVCN.");
+    };
+    reader.readAsDataURL(fileInput.files[0]);
+  } else {
+    addReport(cname, sid, target, text, null);
+    renderStudentPortal(cname, sid);
+    alert("Đã gửi tố giác. Nếu đạt ngưỡng sẽ báo GVCN.");
+  }
+}
+
+function addReport(cname, authorId, targetId, text, evidenceDataUrl){
+  const id = 'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+  const key = text.toLowerCase().trim();
+  state.classes[cname].reports[id] = { id, targetId, text, textKey:key, authorId, evidence:evidenceDataUrl, createdAt:Date.now() };
+  // check threshold (distinct reporter IDs)
+  const reports = Object.values(state.classes[cname].reports);
+  const same = reports.filter(r=>r.targetId===targetId && r.textKey===key);
+  const distinct = [...new Set(same.map(r=>r.authorId))];
+  if(distinct.length >= 3){
+    // create pendingReport if not exists for same key
+    const pendingExists = Object.values(state.classes[cname].pendingReports||{}).some(p=>p.targetId===targetId && p.textKey===key && !p.resolved);
+    if(!pendingExists){
+      const pid = 'p_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+      state.classes[cname].pendingReports[pid] = { id:pid, targetId, text, textKey:key, reporters: distinct, evidenceList: same.filter(r=>r.evidence).map(r=>r.evidence), status:'pending', createdAt:Date.now() };
+      // notify homeroom via meta
+      state.classes[cname].meta = state.classes[cname].meta || {}; state.classes[cname].meta.lastPending = pid;
+    }
+  }
+  saveState();
+}
+
+/* student voting (for verification) */
+function refreshStudentVote(cname){
+  const voteArea = document.getElementById("voteArea");
+  if(!voteArea) return;
+  // check if any open pendingReports and homeroom opened voting
+  const pendings = Object.values(state.classes[cname].pendingReports || {}).filter(p=>p.status==='voting');
+  if(pendings.length===0){ voteArea.innerHTML = "Chưa có phiên bỏ phiếu."; return; }
+  const p = pendings[0];
+  voteArea.innerHTML = `<div><b>Xác minh tố giác:</b> ${p.targetId} — ${p.text}</div>
+    <div style="margin-top:8px" class="row"><button class="btn good" onclick="castVote('${cname}','${p.id}','yes')">Đúng</button><button class="btn bad" onclick="castVote('${cname}','${p.id}','no')">Sai</button></div>`;
+}
+
+function castVote(cname, pid, v){
+  const p = state.classes[cname].pendingReports[pid];
+  p.votes = p.votes||{yes:0,no:0,by:[]} ;
+  if(v==='yes') p.votes.yes++; else p.votes.no++;
+  saveState();
+  refreshStudentVote(cname);
+  alert("Đã ghi nhận lá phiếu của bạn.");
+}
+
+/* ---------- Teacher portal ---------- */
+function renderTeacherPortal(cname){
+  const area = document.getElementById("portalArea");
+  // teacher chooses subject (simulate 11 teachers - each teacher selects their subject to act as)
+  let subjectOptions = SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('');
+  area.innerHTML = `
+    <div class="h2">Mục Giáo viên bộ môn</div>
+    <div class="note">Chọn môn bạn dạy rồi đánh giá GOOD/BAD cho HS trong lớp.</div>
+    <div style="margin-top:8px" class="row"><select id="teacherSubject">${subjectOptions}</select><button class="btn" onclick="renderTeacherList('${cname}')">Chọn</button></div>
+    <div id="teacherListArea" style="margin-top:12px"></div>
+    <div style="margin-top:12px" class="card"><div class="h2">Hạnh kiểm chờ duyệt (do GVCN gửi)</div><div id="teacherHK" class="small">Không có</div></div>
+  `;
+  renderTeacherList(cname);
+  renderTeacherPendingHK(cname);
+}
+
+function renderTeacherList(cname){
+  const subj = document.getElementById("teacherSubject").value;
+  const area = document.getElementById("teacherListArea");
+  const students = state.classes[cname].students;
+  let html = `<table class="table"><tr><th>Học sinh</th><th>GOOD</th><th>BAD</th><th>Hạng</th><th>Hành động</th></tr>`;
+  for(const id in students){
+    const s = students[id];
+    html += `<tr><td>${s.name} <div class="small">${s.id}</div></td><td>${s.good}</td><td>${s.bad}</td><td>${rankOf(s.good,s.bad)}</td>
+      <td><button class="btn good" onclick="teacherGive('${cname}','${id}','${subj}','good')">GOOD</button> <button class="btn bad" onclick="teacherGive('${cname}','${id}','${subj}','bad')">BAD</button></td></tr>`;
+  }
+  html += `</table>`;
+  area.innerHTML = html;
+}
+
+function teacherGive(cname, studentId, subj, type){
+  const s = state.classes[cname].students[studentId];
+  if(!s) return alert("Không tìm thấy học sinh");
+  if(type==='good'){
+    s.good = (s.good||0)+1;
+    // 3 GOOD neutralize 1 BAD
+    if(s.good>=3 && s.bad>0){ s.good-=3; s.bad-=1; }
+    s.subjects = s.subjects || {}; s.subjects[subj] = s.subjects[subj] || {good:0,bad:0}; s.subjects[subj].good++;
+    if(s.subjects[subj].good>=3 && s.subjects[subj].bad>0){ s.subjects[subj].good-=3; s.subjects[subj].bad-=1; }
+  } else {
+    s.bad = (s.bad||0)+1;
+    s.subjects = s.subjects || {}; s.subjects[subj] = s.subjects[subj] || {good:0,bad:0}; s.subjects[subj].bad++;
+  }
+  state.classes[cname].meta = state.classes[cname].meta || {}; state.classes[cname].meta.lastTeacherAction = Date.now();
+  saveState();
+  renderTeacherList(cname);
+  renderStatusLine(`GV môn ${subj} đánh giá ${s.name}: ${type.toUpperCase()}`);
+}
+
+/* ----------- Homeroom portal (GVCN) ---------- */
+function renderHomeroomPortal(cname){
+  const area = document.getElementById("portalArea");
+  area.innerHTML = `
+    <div class="h2">Mục Giáo viên chủ nhiệm</div>
+    <div class="note">Bạn là GVCN của lớp ${cname}. Quản lý HS, duyệt tố giác, reset tuần, đánh giá hạnh kiểm.</div>
+    <div style="margin-top:10px" class="grid" id="homeroomGrid"></div>
+  `;
+  renderHomeroomGrid(cname);
+  updateStatus();
+}
+
+function renderHomeroomGrid(cname){
+  const grid = document.getElementById("homeroomGrid");
+  const c = state.classes[cname];
+  // students management
+  let studentsHtml = `<div class="card"><div class="h2">Quản lý học sinh</div>
+    <div class="note">Thêm học sinh bằng ID duy nhất (ví dụ HS10A1_04)</div>
+    <input id="newStudId" placeholder="ID (HS10A1_04)"><input id="newStudName" placeholder="Họ tên" style="margin-top:8px"><div class="row" style="margin-top:8px"><button class="btn" onclick="addStudentToClass('${cname}')">Thêm</button><button class="btn ghost" onclick="renderHomeroomPortal('${cname}')">Làm mới</button></div>
+    <div style="margin-top:10px"><ul class="list">`;
+  for(const id in c.students){
+    const s = c.students[id];
+    studentsHtml += `<li><b>${s.name}</b> (${s.id}) • GOOD:${s.good||0} BAD:${s.bad||0} <button class="btn ghost" onclick="removeStudent('${cname}','${id}')">Xóa</button></li>`;
+  }
+  studentsHtml += `</ul></div></div>`;
+
+  // pending reports
+  let pendingHtml = `<div class="card"><div class="h2">Tố giác chờ duyệt</div>`;
+  const pendings = Object.values(c.pendingReports||{}).filter(p=>!p.processed);
+  if(pendings.length===0) pendingHtml += `<div class="small">Không có tố giác chờ.</div>`;
+  pendings.forEach(p=>{
+    pendingHtml += `<div style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">
+      <div><b>Mục tiêu:</b> ${p.targetId}</div><div class="small">${p.text}</div>`;
+    if(p.evidenceList && p.evidenceList.length){
+      p.evidenceList.forEach(e=> pendingHtml += `<img src="${e}" class="preview">`);
+    }
+    pendingHtml += `<div style="margin-top:8px" class="row"><button class="btn" onclick="approvePending('${cname}','${p.id}')">Xác nhận → +1 BAD</button><button class="btn ghost" onclick="rejectPending('${cname}','${p.id}')">Hủy</button><button class="btn ghost" onclick="openVoting('${cname}','${p.id}')">Mở bỏ phiếu HS</button></div></div>`;
+  });
+  pendingHtml += `</div>`;
+
+  // history and reset week
+  let historyHtml = `<div class="card"><div class="h2">Lịch sử & Làm mới tuần</div><div class="note">Khi làm mới, dữ liệu tuần sẽ chuyển vào lịch sử và reset GOOD/BAD hiện tại.</div>
+    <div style="margin-top:8px" class="row"><button class="btn" onclick="resetWeek('${cname}')">Làm mới sang tuần mới</button><button class="btn ghost" onclick="showHistory('${cname}')">Xem lịch sử</button></div></div>`;
+
+  // hanhkiem (semester)
+  let hkHtml = `<div class="card"><div class="h2">Đánh giá hạnh kiểm (học kỳ)</div>
+    <div class="small">Chọn học sinh → chọn mức → gửi duyệt tới 11 GVBM</div>
+    <div style="margin-top:8px" class="row"><select id="hkStudentSel"></select><select id="hkLevelSel" style="width:140px;margin-left:8px"><option>Tốt</option><option>Khá</option><option>Trung bình</option><option>Kém</option></select></div>
+    <div style="margin-top:8px"><button class="btn" onclick="submitHanhKiem('${cname}')">Gửi đánh giá hạnh kiểm</button></div>
+    <div style="margin-top:8px" id="pendingHKArea" class="small"></div></div>`;
+
+  grid.innerHTML = studentsHtml + pendingHtml + historyHtml + hkHtml;
+  // populate hk student select
+  const sel = document.getElementById("hkStudentSel");
+  sel.innerHTML = "";
+  for(const id in c.students){ const s=c.students[id]; const o=document.createElement("option"); o.value=id; o.textContent=`${s.name} (${id})`; sel.appendChild(o); }
+  renderPendingHKList(cname);
+}
+
+function addStudentToClass(cname){
+  const id = document.getElementById("newStudId").value.trim();
+  const name = document.getElementById("newStudName").value.trim();
+  if(!id||!name) return alert("Nhập đầy đủ ID và tên");
+  if(state.classes[cname].students[id]) return alert("ID đã tồn tại");
+  state.classes[cname].students[id] = { id, name, good:0,bad:0, hk:null };
+  saveState();
+  renderHomeroomPortal(cname);
+}
+
+function removeStudent(cname,id){
+  if(!confirm("Xác nhận xóa học sinh?")) return;
+  delete state.classes[cname].students[id];
+  saveState();
+  renderHomeroomPortal(cname);
+}
+
+/* pending reports handling */
+function approvePending(cname,pid){
+  const p = state.classes[cname].pendingReports[pid];
+  if(!p) return alert("Không tìm thấy");
+  // add 1 bad to target
+  const target = state.classes[cname].students[p.targetId];
+  if(target){ target.bad = (target.bad||0)+1; }
+  p.processed = true; p.resolved = 'approved';
+  saveState();
+  renderHomeroomPortal(cname);
+  alert("Đã xác nhận và cộng 1 BAD cho "+p.targetId);
+}
+
+function rejectPending(cname,pid){
+  const p = state.classes[cname].pendingReports[pid];
+  if(!p) return alert("Không tìm thấy");
+  p.processed = true; p.resolved = 'rejected';
+  saveState();
+  renderHomeroomPortal(cname);
+  alert("Đã hủy tố giác.");
+}
+
+/* open voting for students */
+function openVoting(cname,pid){
+  const p = state.classes[cname].pendingReports[pid];
+  if(!p) return alert("Không tìm thấy");
+  p.status = 'voting'; p.votes = p.votes||{yes:0,no:0};
+  saveState();
+  alert("Đã mở phiên bỏ phiếu. Học sinh sẽ thấy và vote.");
+  renderHomeroomPortal(cname);
+}
+
+/* reset week -> move snapshot to history and zero current goods/bads */
+function resetWeek(cname){
+  if(!confirm("Xác nhận làm mới tuần? Dữ liệu tuần sẽ được lưu vào lịch sử và reset GOOD/BAD hiện tại.")) return;
+  const c = state.classes[cname];
+  const snapshot = {ts:Date.now(), students: JSON.parse(JSON.stringify(c.students)), reports: c.reports, pendingReports:c.pendingReports};
+  c.history = c.history || {weeks:[]};
+  c.history.weeks.push(snapshot);
+  // reset goods/bads for current students
+  for(const id in c.students){ c.students[id].good = 0; c.students[id].bad = 0; }
+  // clear reports and pendingReports
+  c.reports = {}; c.pendingReports = {};
+  saveState();
+  renderHomeroomPortal(cname);
+  alert("Đã reset tuần và lưu lịch sử.");
+}
+
+function showHistory(cname){
+  const c = state.classes[cname];
+  const weeks = (c.history && c.history.weeks) || [];
+  let html = `<div class="h2">Lịch sử tuần (${weeks.length})</div>`;
+  if(weeks.length===0) html += `<div class="small">Chưa có lịch sử</div>`;
+  weeks.forEach((w,idx)=>{
+    html += `<div style="margin-top:8px" class="card"><b>Tuần ${idx+1} — ${new Date(w.ts).toLocaleString()}</b><div class="small">Học sinh snapshot:</div><ul class="list">`;
+    for(const id in w.students){ const s = w.students[id]; html+=`<li>${s.name} (${id}) — GOOD:${s.good} BAD:${s.bad}</li>`; }
+    html += `</ul></div>`;
+  });
+  // show modal-like in mainArea
+  mainArea.innerHTML = `<div class="card"><button class="btn ghost" onclick="renderLanding()">Đóng</button>${html}</div>`;
+}
+
+/* ---------------- Hạnh kiểm flow ---------------- */
+function submitHanhKiem(cname){
+  const sid = document.getElementById("hkStudentSel").value;
+  const level = document.getElementById("hkLevelSel").value;
+  const id = 'hk_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  const approvals = {}; SUBJECTS.forEach(s=>approvals[s]=null);
+  state.classes[cname].hanhkiem[id] = { id, studentId:sid, proposedLevel:level, approvals, resolved:false, finalLevel:null };
+  saveState();
+  alert("Đã gửi hạnh kiểm để 11 GVBM duyệt.");
+  renderHomeroomPortal(cname);
+}
+
+// Teacher view of pending HK
+function renderTeacherPendingHK(cname){
+  const pendings = Object.values(state.classes[cname].hanhkiem||{}).filter(h=>!h.resolved);
+  const area = document.getElementById("teacherHK");
+  if(!area) return;
+  if(pendings.length===0) return area.innerHTML = "<div class='small'>Không có hạnh kiểm chờ.</div>";
+  let html = "";
+  pendings.forEach(h=>{
+    const s = state.classes[cname].students[h.studentId];
+    html += `<div style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.02);border-radius:8px"><b>${s.name} (${h.studentId})</b><div class="small">Đề xuất: ${h.proposedLevel}</div><div class="small">Trạng thái phê duyệt: ${renderApprovals(h)}</div><div style="margin-top:8px" class="row"><button class="btn" onclick="teacherApproveHK('${cname}','${h.id}')">Đồng ý</button><button class="btn bad" onclick="teacherRejectHK('${cname}','${h.id}')">Không đồng ý</button></div></div>`;
+  });
+  area.innerHTML = html;
+}
+
+function renderApprovals(h){
+  return SUBJECTS.map(s=> `${s}:${h.approvals[s]===null?'-':(h.approvals[s]?'Đ':'K')}`).join(' | ');
+}
+
+function teacherApproveHK(cname,hid){
+  const subj = document.getElementById("teacherSubject") ? document.getElementById("teacherSubject").value : SUBJECTS[0];
+  const h = state.classes[cname].hanhkiem[hid];
+  if(!h || h.resolved) return alert("Không tìm thấy hạnh kiểm");
+  if(h.approvals[subj]!==null) return alert("Bạn đã phản hồi cho môn này");
+  h.approvals[subj]=true;
+  // check all approved
+  const all = Object.values(h.approvals).every(v=>v===true);
+  if(all){
+    h.resolved=true; h.finalLevel=h.proposedLevel;
+    state.classes[cname].students[h.studentId].hk = h.finalLevel;
+    alert("Hạnh kiểm được duyệt giữ: " + h.finalLevel);
+  }
+  saveState();
+  renderTeacherPendingHK(cname); renderHomeroomPortal(cname);
+}
+
+function teacherRejectHK(cname,hid){
+  const subj = document.getElementById("teacherSubject") ? document.getElementById("teacherSubject").value : SUBJECTS[0];
+  const h = state.classes[cname].hanhkiem[hid];
+  if(!h || h.resolved) return alert("Không tìm thấy hạnh kiểm");
+  if(h.approvals[subj]!==null) return alert("Bạn đã phản hồi cho môn này");
+  h.approvals[subj]=false;
+  // if any false -> downgrade one level and finalize
+  const order = ["Kém","Trung bình","Khá","Tốt"];
+  const idx = order.indexOf(h.proposedLevel);
+  const newIdx = Math.max(0, idx-1);
+  h.resolved=true; h.finalLevel = order[newIdx];
+  state.classes[cname].students[h.studentId].hk = h.finalLevel;
+  saveState();
+  alert("Một GV phản đối → hạ 1 mức: "+h.finalLevel);
+  renderTeacherPendingHK(cname); renderHomeroomPortal(cname);
+}
+
+/* ---------- Utilities & status ---------- */
+function renderStatusLine(text){ const s = document.getElementById("statusArea"); const p = document.createElement("div"); p.textContent = new Date().toLocaleTimeString()+ " — " + text; s.prepend(p); }
+function updateStatus(){
+  const s = document.getElementById("statusArea");
+  if(!s) return;
+  s.innerHTML = '';
+  for(const k in state.classes){
+    const c = state.classes[k];
+    const line = document.createElement("div");
+    line.innerHTML = `<b>${k}</b> • HS:${Object.keys(c.students||{}).length} • Reports:${Object.keys(c.reports||{}).length} • Pending:${Object.keys(c.pendingReports||{}).length}`;
+    s.appendChild(line);
+  }
+}
+
+/* helpers */
+function rankOf(good,bad){
+  const score = (good||0)-(bad||0);
+  if(score>=3) return "A";
+  if(score>=1) return "B";
+  if(score===0) return "C";
+  if(score===-1) return "D";
+  if(score===-2) return "E";
+  return "F";
+}
+
+/* create class */
+function createClass(){
+  const name = document.getElementById("newClassName").value.trim();
+  const pass = document.getElementById("newClassPass").value.trim();
+  if(!name || !pass) return alert("Nhập tên lớp và mật khẩu");
+  if(state.classes[name]) return alert("Lớp đã tồn tại");
+  state.classes[name] = { name, pass, createdAt:Date.now(), students:{}, reports:{}, pendingReports:{}, history:{weeks:[]}, hanhkiem:{}, meta:{} };
+  saveState();
+  renderLanding();
+  alert("Tạo lớp "+name+" thành công.");
+}
+
+/* show class info quick */
+function showClassInfo(cname){
+  const c = state.classes[cname];
+  mainArea.innerHTML = `<div class="card"><h2>Thông tin lớp ${cname}</h2><div class="small">HS: ${Object.keys(c.students||{}).length} • Reports: ${Object.keys(c.reports||{}).length}</div><div style="margin-top:12px"><button class="btn ghost" onclick="renderLanding()">Đóng</button></div></div>`;
+}
+
+/* export/import data */
+function downloadData(){
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state,null,2));
+  const a = document.createElement('a'); a.setAttribute('href', dataStr); a.setAttribute('download','class_monitor_data.json'); document.body.appendChild(a); a.click(); a.remove();
+}
+
+function resetAll(){
+  if(!confirm("Xóa toàn bộ dữ liệu demo?")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state = loadState();
+  renderLanding();
+  alert("Đã reset dữ liệu demo.");
+}
+
+/* remove student helper used above */
+
+function renderStudentRanking(cname){
+  const area = document.getElementById("studentRankArea");
+  if(!area) return;
+  if(!state.settings.publicRanking){ area.innerText = "GVCN chưa bật công khai bảng xếp hạng."; return; }
+  const students = Object.values(state.classes[cname].students);
+  let rows = [["Học sinh","GOOD","BAD","Hạng","Hạnh kiểm"]];
+  students.forEach(s=>rows.push([s.name,s.good,s.bad,rankOf(s.good,s.bad), s.hk || "Chưa"]));
+  let html = `<table class="table"><tr>${rows[0].map(h=>`<th>${h}</th>`).join('')}</tr>`;
+  for(let i=1;i<rows.length;i++){ html+=`<tr>${rows[i].map(c=>`<td>${c}</td>`).join('')}</tr>`; }
+  html += `</table>`;
+  area.innerHTML = html;
+}
+
+/* pending HK list for homeroom view */
+function renderPendingHKList(cname){
+  const area = document.getElementById("pendingHK");
+  if(!area) return;
+  const items = Object.values(state.classes[cname].hanhkiem||{});
+  if(items.length===0) { area.innerHTML = "<div class='small'>Chưa có đánh giá hạnh kiểm chờ</div>"; return; }
+  let html = "";
+  items.forEach(h=>{
+    html += `<li><b>${h.studentId}</b> đề xuất: ${h.proposedLevel} • Trạng thái:${h.resolved?'Đã xử lý':'Chờ'}</li>`;
+  });
+  area.innerHTML = html;
+}
+
+/* remove student exposed for remove button */
+window.removeStudent = removeStudent;
+window.renderLanding = renderLanding;
+window.openPortal = openPortal;
+
+renderLanding();
+updateStatus();
+saveState();
+</script>
+</body>
+</html>
