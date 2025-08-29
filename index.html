@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Quản lý lớp học - Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
+    h1 { color: #2c3e50; }
+    .box { background: #fff; padding: 20px; margin: 10px 0; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    input, button { padding: 8px; margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Hệ thống lớp học (Demo)</h1>
+
+  <div id="login" class="box">
+    <h2>Đăng nhập vào lớp</h2>
+    <input type="text" id="className" placeholder="Tên lớp (vd: 10A1)">
+    <input type="password" id="classPass" placeholder="Mật khẩu lớp">
+    <button onclick="login()">Vào lớp</button>
+    <p id="loginMsg" style="color:red;"></p>
+  </div>
+
+  <div id="dashboard" class="box" style="display:none;">
+    <h2 id="classTitle"></h2>
+    <p><b>Chọn mục:</b></p>
+    <button onclick="goto('hs')">👩‍🎓 Học sinh</button>
+    <button onclick="goto('gvbm')">👨‍🏫 Giáo viên bộ môn</button>
+    <button onclick="goto('gvcn')">👩‍💼 Giáo viên chủ nhiệm</button>
+    <button onclick="logout()">🔑 Thoát</button>
+  </div>
+
+  <div id="hs" class="box" style="display:none;">
+    <h3>Mục Học sinh</h3>
+    <p>📌 Tố giác ẩn danh, xem bảng xếp hạng (demo).</p>
+    <button onclick="back()">⬅ Trở lại</button>
+  </div>
+
+  <div id="gvbm" class="box" style="display:none;">
+    <h3>Mục Giáo viên bộ môn</h3>
+    <p>📌 Đánh giá GOOD / BAD cho học sinh (demo).</p>
+    <button onclick="back()">⬅ Trở lại</button>
+  </div>
+
+  <div id="gvcn" class="box" style="display:none;">
+    <h3>Mục Giáo viên chủ nhiệm</h3>
+    <p>📌 Xem tố giác, quản lý điểm hạnh kiểm (demo).</p>
+    <button onclick="back()">⬅ Trở lại</button>
+  </div>
+
+  <script>
+    const classes = {
+      "10A1": "a1pass",
+      "10A2": "a2pass"
+    };
+    let currentClass = null;
+
+    function login() {
+      const name = document.getElementById("className").value;
+      const pass = document.getElementById("classPass").value;
+      if (classes[name] && classes[name] === pass) {
+        currentClass = name;
+        document.getElementById("login").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        document.getElementById("classTitle").innerText = "Bạn đang ở lớp " + name;
+      } else {
+        document.getElementById("loginMsg").innerText = "Sai tên lớp hoặc mật khẩu!";
+      }
+    }
+
+    function goto(section) {
+      document.getElementById("dashboard").style.display = "none";
+      document.getElementById(section).style.display = "block";
+    }
+
+    function back() {
+      document.getElementById("hs").style.display = "none";
+      document.getElementById("gvbm").style.display = "none";
+      document.getElementById("gvcn").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+    }
+
+    function logout() {
+      currentClass = null;
+      document.getElementById("dashboard").style.display = "none";
+      document.getElementById("hs").style.display = "none";
+      document.getElementById("gvbm").style.display = "none";
+      document.getElementById("gvcn").style.display = "none";
+      document.getElementById("login").style.display = "block";
+    }
+  </script>
+</body>
+</html>
